@@ -1,0 +1,21 @@
+# Rust
+/target
+**/*.rs.bk
+
+# Node / Frontend
+node_modules
+dist
+.vite
+*.log
+
+# Environment
+.env
+**/.env
+.env.*.local
+
+# Editor / OS
+.DS_Store
+.idea
+.vscode
+
+

@@ -1,0 +1,77 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: isit_postgres
+    environment:
+      POSTGRES_DB: isit
+      POSTGRES_USER: isit
+      POSTGRES_PASSWORD: isit
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U isit -d isit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: isit_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: adminadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio:/data
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: isit_mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  backend:
+    build:
+      context: ./backend
+    container_name: isit_backend
+    environment:
+      RUST_LOG: info
+      SERVER_PORT: 8080
+      DATABASE_URL: postgres://isit:isit@postgres:5432/isit
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: isit-attachments
+      S3_ACCESS_KEY_ID: admin
+      S3_SECRET_ACCESS_KEY: adminadmin
+      ALLOWED_ORIGINS: http://localhost:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: isit_frontend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  pgdata:
+  minio:
+
+
