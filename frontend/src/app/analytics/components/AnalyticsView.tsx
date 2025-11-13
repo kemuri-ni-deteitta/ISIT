@@ -6,7 +6,7 @@ import { expensesApi } from "@/shared/api/expenses";
 import { referenceApi } from "@/shared/api/reference";
 import type { Expense } from "@/shared/types/expense";
 import { Chart, useChart } from "@chakra-ui/charts";
-import { Pie, PieChart, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { Pie, PieChart, BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 type ChartType = "pie" | "bar" | "line";
 type PeriodOption = "last_30_days" | "last_7_days" | "this_month" | "all";
@@ -14,7 +14,7 @@ type PeriodOption = "last_30_days" | "last_7_days" | "this_month" | "all";
 const chartTypes = createListCollection({
   items: [
     { label: "Круговая диаграмма", value: "pie" as ChartType },
-    // Future: { label: "Гистограмма", value: "bar" as ChartType },
+    { label: "Столбчатая диаграмма", value: "bar" as ChartType },
     // Future: { label: "Линейный график", value: "line" as ChartType },
   ],
 });
@@ -206,24 +206,38 @@ export const AnalyticsView = () => {
         <Card.Body py={6} px={6}>
           <Box w="100%" h="1000px">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={displayData}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={0}
-                  outerRadius={260}
-                  paddingAngle={2}
-                  cx="50%"
-                  cy="52%"
-                  isAnimationActive={false}
-                >
-                  {displayData.map((_: any, idx: number) => (
-                    <Cell key={idx} fill={colors[idx % colors.length]} />
-                  ))}
-                </Pie>
-                <Tooltip isAnimationActive={false} />
-              </PieChart>
+              {chartType === "pie" ? (
+                <PieChart>
+                  <Pie
+                    data={displayData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={0}
+                    outerRadius={260}
+                    paddingAngle={2}
+                    cx="50%"
+                    cy="52%"
+                    isAnimationActive={false}
+                  >
+                    {displayData.map((_: any, idx: number) => (
+                      <Cell key={idx} fill={colors[idx % colors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip isAnimationActive={false} />
+                </PieChart>
+              ) : (
+                <BarChart data={displayData} margin={{ top: 16, right: 24, left: 8, bottom: 32 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" height={60} />
+                  <YAxis />
+                  <Tooltip isAnimationActive={false} />
+                  <Bar dataKey="value" isAnimationActive={false}>
+                    {displayData.map((_: any, idx: number) => (
+                      <Cell key={idx} fill={colors[idx % colors.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              )}
             </ResponsiveContainer>
           </Box>
         </Card.Body>
