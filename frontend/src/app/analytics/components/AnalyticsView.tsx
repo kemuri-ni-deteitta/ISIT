@@ -196,7 +196,7 @@ export const AnalyticsView = () => {
 
       <Card.Root>
         <Card.Body py={6} px={6}>
-          <Box w="100%" h="560px">
+          <Box w="100%" h="1000px">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
