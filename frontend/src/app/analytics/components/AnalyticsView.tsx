@@ -6,7 +6,20 @@ import { expensesApi } from "@/shared/api/expenses";
 import { referenceApi } from "@/shared/api/reference";
 import type { Expense } from "@/shared/types/expense";
 import { Chart, useChart } from "@chakra-ui/charts";
-import { Pie, PieChart, BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  Pie,
+  PieChart,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 type ChartType = "pie" | "bar" | "line";
 type PeriodOption = "last_30_days" | "last_7_days" | "this_month" | "all";
@@ -15,7 +28,7 @@ const chartTypes = createListCollection({
   items: [
     { label: "Круговая диаграмма", value: "pie" as ChartType },
     { label: "Столбчатая диаграмма", value: "bar" as ChartType },
-    // Future: { label: "Линейный график", value: "line" as ChartType },
+    { label: "Линейный график", value: "line" as ChartType },
   ],
 });
 
@@ -112,10 +125,37 @@ export const AnalyticsView = () => {
     });
   };
 
+  // Custom multi-line tick for long category names: each word on a new line
+  const MultiLineTick = (props: any) => {
+    const { x, y, payload } = props;
+    const words: string[] = String(payload?.value ?? "")
+      .split(/\s+/)
+      .filter(Boolean);
+    const fontSize = 13;
+    const lineHeight = 15; // px
+    const verticalOffset = 4; // Move text slightly below the axis line
+    return (
+      <g transform={`translate(${x},${y + verticalOffset})`}>
+        <text textAnchor="middle" style={{ fontSize }}>
+          {words.map((w, idx) => (
+            <tspan key={idx} x={0} dy={idx === 0 ? 0 : lineHeight}>
+              {w}
+            </tspan>
+          ))}
+        </text>
+      </g>
+    );
+  };
+
   const displayData = useMemo(() => {
     if (selected.size === 0) return chart.data;
     return chart.data.filter((d: any) => selected.has(d.name));
   }, [chart.data, selected]);
+
+  // Tooltip value label -> "Сумма"
+  const tooltipFormatter = (value: any) => {
+    return [value, "Сумма"];
+  };
 
   return (
     <Box>
@@ -224,19 +264,28 @@ export const AnalyticsView = () => {
                     ))}
                   </Pie>
                   <Tooltip isAnimationActive={false} />
+                  <Tooltip isAnimationActive={false} formatter={tooltipFormatter} />
                 </PieChart>
-              ) : (
-                <BarChart data={displayData} margin={{ top: 16, right: 24, left: 8, bottom: 32 }}>
+              ) : chartType === "bar" ? (
+                <BarChart data={displayData} margin={{ top: 16, right: 24, left: 8, bottom: 50 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" height={60} />
+                  <XAxis dataKey="name" interval={0} height={80} tick={<MultiLineTick />} />
                   <YAxis />
-                  <Tooltip isAnimationActive={false} />
+                  <Tooltip isAnimationActive={false} formatter={tooltipFormatter} />
                   <Bar dataKey="value" isAnimationActive={false}>
                     {displayData.map((_: any, idx: number) => (
                       <Cell key={idx} fill={colors[idx % colors.length]} />
                     ))}
                   </Bar>
                 </BarChart>
+              ) : (
+                <LineChart data={displayData} margin={{ top: 16, right: 24, left: 8, bottom: 50 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" interval={0} height={80} tick={<MultiLineTick />} />
+                  <YAxis />
+                  <Tooltip isAnimationActive={false} formatter={tooltipFormatter} />
+                  <Line type="monotone" dataKey="value" stroke="#4F46E5" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+                </LineChart>
               )}
             </ResponsiveContainer>
           </Box>
