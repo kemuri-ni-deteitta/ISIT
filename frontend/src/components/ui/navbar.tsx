@@ -9,7 +9,8 @@ const pages = [
   { name: "Учёт затрат", path: "/expenses", icon: LuCreditCard },
   { name: "Аналитика и отчётность", path: "/analytics", icon: LuChartArea },
   { name: "Управление пользователями", path: "/admin-panel", icon: LuUsers },
-  { name: "Настройки системы", path: "/settings", icon: LuSettings },
+  { name: "Типы затрат", path: "/type_of_expenditure", icon: LuSettings },
+  { name: "Источники финансирования", path: "/funding-sources", icon: LuSettings },
 ];
 
 export default function Navbar() {
@@ -21,8 +22,8 @@ export default function Navbar() {
     <Drawer.Root placement="start">
       <Box as="nav" position="fixed" top="0" left="0" right="0" height="60px" px="4" borderBottomWidth="1px" bg="white">
         <Flex align="center" justify="space-between" height="100%">
-          <Drawer.Trigger>
-            <IconButton variant="ghost">
+          <Drawer.Trigger asChild>
+            <IconButton variant="ghost" aria-label="Open menu">
               <HamburgerIcon />
             </IconButton>
           </Drawer.Trigger>

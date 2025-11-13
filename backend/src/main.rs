@@ -105,6 +105,22 @@ async fn main() -> anyhow::Result<()> {
 				.route("/:id", put(http::category_handlers::update_category))
 				.route("/:id", delete(http::category_handlers::delete_category)),
 		)
+		.nest(
+			"/api/v1/funding-sources",
+			Router::new()
+				.route("/", get(http::funding_source_handlers::list_funding_sources))
+				.route("/", post(http::funding_source_handlers::create_funding_source))
+				.route("/:id", put(http::funding_source_handlers::update_funding_source))
+				.route("/:id", delete(http::funding_source_handlers::delete_funding_source)),
+		)
+		.nest(
+			"/api/v1/users",
+			Router::new()
+				.route("/", get(http::user_handlers::list_users))
+				.route("/", post(http::user_handlers::create_user))
+				.route("/:id", put(http::user_handlers::update_user))
+				.route("/:id", delete(http::user_handlers::delete_user)),
+		)
 		.layer(TraceLayer::new_for_http())
 		.layer(cors)
 		.with_state(pool);

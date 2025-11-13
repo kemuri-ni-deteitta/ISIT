@@ -6,14 +6,33 @@ import { AdminPanelUsersDialog } from "./AdminPanelUsersDialog";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { AdminPanelUsersTable } from "./AdminPanelUsersTable";
 import { toaster } from "@/components/ui/toaster";
+import { usersApi } from "@/shared/api/users";
 
 export const AdminPanelUsersManager = () => {
   const createDialog = useDisclosure();
   const [searchTerm, setSearchTerm] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleCreate = (data: any) => {
-    toaster.success({ title: "Пользователь успешно создан" });
-    createDialog.onClose();
+  const handleCreate = async (data: any) => {
+    try {
+      await usersApi.create({
+        email: data.email,
+        last_name: data.lastName,
+        first_name: data.firstName,
+        middle_name: data.middleName || undefined,
+        role: data.role,
+      });
+      toaster.success({ title: "Пользователь успешно создан" });
+      createDialog.onClose();
+      setRefreshKey((k) => k + 1);
+    } catch (error: any) {
+      const errorMessage = error?.response?.data || error?.message || "Неизвестная ошибка";
+      console.error("Error creating user:", error);
+      toaster.error({
+        title: "Ошибка создания пользователя",
+        description: typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage),
+      });
+    }
   };
 
   const handleSearchChange = (value: string) => {
@@ -31,7 +50,7 @@ export const AdminPanelUsersManager = () => {
           </Flex>
         </Card.Header>
         <Card.Body>
-          <AdminPanelUsersTable />
+          <AdminPanelUsersTable key={refreshKey} />
         </Card.Body>
       </Card.Root>
 

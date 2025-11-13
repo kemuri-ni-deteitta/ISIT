@@ -6,7 +6,6 @@ import {
   Dialog,
   Field,
   Input,
-  NumberInput,
   Portal,
   Select,
   createListCollection,
@@ -16,6 +15,8 @@ import { referenceApi } from "@/shared/api/reference";
 import { expensesApi } from "@/shared/api/expenses";
 import type { Category, Department } from "@/shared/types/expense";
 import { toaster } from "@/components/ui/toaster";
+import { usersApi } from "@/shared/api/users";
+import { fundingSourcesApi, type FundingSource } from "@/shared/api/fundingSources";
 
 interface Props {
   open: boolean;
@@ -26,13 +27,16 @@ interface Props {
 export const ExpenseDialog = ({ open, onClose, onCreated }: Props) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
+  const [sources, setSources] = useState<FundingSource[]>([]);
 
   const [categoryId, setCategoryId] = useState<string>("");
   const [departmentId, setDepartmentId] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [vendor, setVendor] = useState<string>("");
-  const [fundingSource, setFundingSource] = useState<string>("internal");
+  const [fundingSource, setFundingSource] = useState<string>("");
+  const formatter = useMemo(() => new Intl.NumberFormat("ru-RU"), []);
 
   const categoriesCollection = useMemo(
     () => createListCollection({ items: categories.map((c) => ({ label: c.name, value: c.id })) }),
@@ -42,30 +46,71 @@ export const ExpenseDialog = ({ open, onClose, onCreated }: Props) => {
     () => createListCollection({ items: departments.map((d) => ({ label: d.name, value: d.id })) }),
     [departments]
   );
+  const usersCollection = useMemo(
+    () => createListCollection({ items: users.map((u) => ({ label: u.name, value: u.id })) }),
+    [users]
+  );
+  const sourcesCollection = useMemo(
+    () => createListCollection({ items: sources.map((s) => ({ label: s.name, value: s.id })) }),
+    [sources]
+  );
 
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const [cats, deps] = await Promise.all([referenceApi.getCategories(), referenceApi.getDepartments()]);
-      setCategories(cats);
-      setDepartments(deps);
+      try {
+        const [cats, deps, us, fs] = await Promise.all([
+          referenceApi.getCategories(),
+          referenceApi.getDepartments(),
+          usersApi.list(),
+          fundingSourcesApi.list(),
+        ]);
+        setCategories(cats);
+        setDepartments(deps);
+        setUsers(us.map((u) => ({ id: u.id, name: u.full_name ?? u.email })));
+        setSources(fs);
+        // Set default funding source if available
+        if (fs.length > 0 && !fundingSource) {
+          setFundingSource(fs[0].id);
+        }
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toaster.error({ title: "Ошибка загрузки данных" });
+      }
     })();
   }, [open]);
 
-  const isInvalid = !categoryId || !departmentId || !amount || !date;
+  const isInvalid = !categoryId || !departmentId || !amount || !date || !fundingSource;
 
   const handleSubmit = async () => {
-    await expensesApi.create({
-      category_id: categoryId,
-      department_id: departmentId,
-      amount: String(amount),
-      incurred_on: date,
-      description: undefined, // Keep description separate from performer
-      funding_source: fundingSource,
-      performer: vendor || undefined,
-    });
-    toaster.success({ title: "Запись создана" });
-    onCreated();
+    try {
+      // Get user name from selected user ID
+      const selectedUser = users.find((u) => u.id === vendor);
+      const performerName = selectedUser?.name || undefined;
+
+      // Get funding source name from selected ID
+      const selectedSource = sources.find((s) => s.id === fundingSource);
+      const fundingSourceName = selectedSource?.name || "";
+
+      await expensesApi.create({
+        category_id: categoryId,
+        department_id: departmentId,
+        amount: String(amount).replace(/\s/g, ""),
+        incurred_on: date,
+        description: undefined,
+        funding_source: fundingSourceName,
+        performer: performerName,
+      });
+      toaster.success({ title: "Запись создана" });
+      onCreated();
+    } catch (error: any) {
+      const errorMessage = error?.response?.data || error?.message || "Неизвестная ошибка";
+      console.error("Error creating expense:", error);
+      toaster.error({
+        title: "Ошибка создания записи",
+        description: typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage),
+      });
+    }
   };
 
   const resetAndClose = () => {
@@ -74,7 +119,12 @@ export const ExpenseDialog = ({ open, onClose, onCreated }: Props) => {
     setAmount("");
     setDate(new Date().toISOString().slice(0, 10));
     setVendor("");
-    setFundingSource("internal");
+    // Reset to first available source or empty
+    if (sources.length > 0) {
+      setFundingSource(sources[0].id);
+    } else {
+      setFundingSource("");
+    }
     onClose();
   };
 
@@ -123,9 +173,25 @@ export const ExpenseDialog = ({ open, onClose, onCreated }: Props) => {
                 {/* Left Column */}
                 <Field.Root>
                   <Field.Label>Сумма расхода</Field.Label>
-                  <NumberInput.Root value={amount} onValueChange={(details) => setAmount(String(details.value || ""))}>
-                    <NumberInput.Input placeholder="Введите сумму, Р" />
-                  </NumberInput.Root>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={amount}
+                    onChange={(e) => {
+                      // Remove all non-digit characters
+                      const raw = e.target.value.replace(/\D/g, "");
+                      // Format with thousand separators
+                      const formatted = raw ? formatter.format(Number(raw)) : "";
+                      setAmount(formatted);
+                    }}
+                    onBlur={(e) => {
+                      // Ensure value is preserved on blur
+                      const raw = e.target.value.replace(/\D/g, "");
+                      const formatted = raw ? formatter.format(Number(raw)) : "";
+                      setAmount(formatted);
+                    }}
+                    placeholder="Введите сумму, ₽"
+                  />
                 </Field.Root>
 
                 {/* Right Column */}
@@ -134,9 +200,7 @@ export const ExpenseDialog = ({ open, onClose, onCreated }: Props) => {
                   <Select.Root
                     value={[fundingSource]}
                     onValueChange={(details) => setFundingSource(details.value[0] || "internal")}
-                    collection={createListCollection({
-                      items: [{ label: "Внутренний бюджет", value: "internal" }],
-                    })}
+                    collection={sourcesCollection}
                   >
                     <Select.Control>
                       <Select.Trigger>
@@ -148,10 +212,12 @@ export const ExpenseDialog = ({ open, onClose, onCreated }: Props) => {
                     </Select.Control>
                     <Select.Positioner>
                       <Select.Content>
-                        <Select.Item item={{ label: "Внутренний бюджет", value: "internal" }}>
-                          Внутренний бюджет
-                          <Select.ItemIndicator />
-                        </Select.Item>
+                        {sourcesCollection.items.map((i) => (
+                          <Select.Item key={i.value} item={i}>
+                            {i.label}
+                            <Select.ItemIndicator />
+                          </Select.Item>
+                        ))}
                       </Select.Content>
                     </Select.Positioner>
                   </Select.Root>
@@ -160,7 +226,30 @@ export const ExpenseDialog = ({ open, onClose, onCreated }: Props) => {
                 {/* Left Column */}
                 <Field.Root>
                   <Field.Label>Исполнитель</Field.Label>
-                  <Input placeholder="Введите данные исполнителя" value={vendor} onChange={(e) => setVendor(e.target.value)} />
+                  <Select.Root
+                    collection={usersCollection}
+                    value={vendor ? [vendor] : []}
+                    onValueChange={(details) => setVendor(details.value[0] || "")}
+                  >
+                    <Select.Control>
+                      <Select.Trigger>
+                        <Select.ValueText placeholder="Выберите пользователя" />
+                      </Select.Trigger>
+                      <Select.IndicatorGroup>
+                        <Select.Indicator />
+                      </Select.IndicatorGroup>
+                    </Select.Control>
+                    <Select.Positioner>
+                      <Select.Content>
+                        {usersCollection.items.map((i) => (
+                          <Select.Item key={i.value} item={i}>
+                            {i.label}
+                            <Select.ItemIndicator />
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Positioner>
+                  </Select.Root>
                 </Field.Root>
 
                 {/* Right Column */}

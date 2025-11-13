@@ -1,58 +1,104 @@
 "use client";
 
-import { useState } from "react";
-import { Table, TableScrollArea, useDisclosure } from "@chakra-ui/react"; // замени на актуальные импорты
+import { useState, useEffect } from "react";
+import { Table, useDisclosure, Spinner, Flex, Text } from "@chakra-ui/react";
 import { AdminPanelUsersDialog, UserData } from "./AdminPanelUsersDialog";
-import { SearchInput } from "@/components/ui/SearchInput";
 import { ItemActions } from "@/components/ui/ItemActions";
+import { usersApi } from "@/shared/api/users";
+import { toaster } from "@/components/ui/toaster";
+import { getRoleLabel } from "@/shared/utils/roles";
 
-// Mock‑данные пользователей
-const mockUsers: UserData[] = [
-  {
-    id: 1,
-    lastName: "Иванов",
-    firstName: "Иван",
-    middleName: "Иванович",
-    email: "ivanov@example.com",
-    role: "employee",
-  },
-  {
-    id: 2,
-    lastName: "Петров",
-    firstName: "Пётр",
-    middleName: "Петрович",
-    email: "petrov@example.com",
-    role: "analyst",
-  },
-  {
-    id: 3,
-    lastName: "Сидорова",
-    firstName: "Анна",
-    middleName: "Сергеевна",
-    email: "sidorova@example.com",
-    role: "financial_admin",
-  },
-];
+// Helper to parse full_name into parts
+function parseFullName(fullName: string | null): { lastName: string; firstName: string; middleName: string } {
+  if (!fullName) {
+    return { lastName: "", firstName: "", middleName: "" };
+  }
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length >= 3) {
+    return { lastName: parts[0], firstName: parts[1], middleName: parts.slice(2).join(" ") };
+  } else if (parts.length === 2) {
+    return { lastName: parts[0], firstName: parts[1], middleName: "" };
+  } else if (parts.length === 1) {
+    return { lastName: parts[0], firstName: "", middleName: "" };
+  }
+  return { lastName: "", firstName: "", middleName: "" };
+}
 
 export const AdminPanelUsersTable = () => {
   const editDialog = useDisclosure();
-  const [users, setUsers] = useState<UserData[]>(mockUsers);
+  const [users, setUsers] = useState<UserData[]>([]);
   const [editUser, setEditUser] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // При клике на редактирование
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const list = await usersApi.list();
+      setUsers(
+        list.map((u) => {
+          const nameParts = parseFullName(u.full_name);
+          return {
+            id: u.id,
+            lastName: nameParts.lastName,
+            firstName: nameParts.firstName,
+            middleName: nameParts.middleName,
+            email: u.email,
+            role: u.role,
+          };
+        })
+      );
+    } catch (error) {
+      toaster.error({ title: "Ошибка загрузки пользователей" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
   const handleEditClick = (user: UserData) => {
-    setEditUser(user); // <-- установили редактируемого пользователя
-    editDialog.onOpen(); // <-- открыли диалог
+    setEditUser(user);
+    editDialog.onOpen();
   };
 
-  const handleEditSubmit = (updated: UserData) => {
-    setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-    editDialog.onClose();
+  const handleEditSubmit = async (updated: UserData) => {
+    if (!updated.id) return;
+    try {
+      await usersApi.update(String(updated.id), {
+        email: updated.email,
+        last_name: updated.lastName,
+        first_name: updated.firstName,
+        middle_name: updated.middleName || undefined,
+        role: updated.role,
+      });
+      toaster.success({ title: "Пользователь обновлён" });
+      editDialog.onClose();
+      loadUsers();
+    } catch (error) {
+      toaster.error({ title: "Ошибка обновления пользователя" });
+    }
   };
 
-  const handleDelete = (user: UserData) => {
-    setUsers((prev) => prev.filter((u) => u.id !== user.id));
+  const handleDelete = async (user: UserData) => {
+    if (!user.id) return;
+    try {
+      await usersApi.delete(String(user.id));
+      toaster.success({ title: "Пользователь удалён" });
+      loadUsers();
+    } catch (error) {
+      toaster.error({ title: "Ошибка удаления пользователя" });
+    }
   };
+
+  if (loading) {
+    return (
+      <Flex align="center" justify="center" p={10}>
+        <Spinner />
+      </Flex>
+    );
+  }
 
   return (
     <>
@@ -68,22 +114,30 @@ export const AdminPanelUsersTable = () => {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {users.map((u) => (
-              <Table.Row key={u.id}>
-                <Table.Cell>
-                  {u.lastName} {u.firstName} {u.middleName}
-                </Table.Cell>
-                <Table.Cell>{u.email}</Table.Cell>
-                <Table.Cell>{u.role}</Table.Cell>
-                <Table.Cell>
-                  <ItemActions
-                    item={u}
-                    onEdit={() => handleEditClick(u)}
-                    onDelete={() => handleDelete(u)}
-                  />
+            {users.length === 0 ? (
+              <Table.Row>
+                <Table.Cell colSpan={4} textAlign="center" py={8}>
+                  <Text color="gray.500">Нет пользователей</Text>
                 </Table.Cell>
               </Table.Row>
-            ))}
+            ) : (
+              users.map((u) => (
+                <Table.Row key={u.id}>
+                  <Table.Cell>
+                    {u.lastName} {u.firstName} {u.middleName}
+                  </Table.Cell>
+                  <Table.Cell>{u.email}</Table.Cell>
+                  <Table.Cell>{getRoleLabel(u.role)}</Table.Cell>
+                  <Table.Cell>
+                    <ItemActions
+                      item={u}
+                      onEdit={() => handleEditClick(u)}
+                      onDelete={() => handleDelete(u)}
+                    />
+                  </Table.Cell>
+                </Table.Row>
+              ))
+            )}
           </Table.Body>
         </Table.Root>
       </Table.ScrollArea>

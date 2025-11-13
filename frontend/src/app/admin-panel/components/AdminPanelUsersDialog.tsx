@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef, FC } from "react";
-import { Dialog, Button, Portal, Field, Input, Select, createListCollection, Text } from "@chakra-ui/react";
+import { Dialog, Button, Portal, Field, Input, Select, createListCollection } from "@chakra-ui/react";
+import { getRoleLabel } from "@/shared/utils/roles";
 
 // Интерфейс данных пользователя
 export interface UserData {
-  id?: number;
+  id?: string | number;
   lastName: string;
   firstName: string;
   middleName: string;
@@ -52,6 +53,7 @@ export const AdminPanelUsersDialog: FC<AdminPanelUsersDialogProps> = ({
       setFirstName(initialValue?.firstName ?? "");
       setMiddleName(initialValue?.middleName ?? "");
       setEmail(initialValue?.email ?? "");
+      // Set role - initialValue.role is already the backend value (e.g., "employee")
       setRole(initialValue?.role ?? "");
       lastNameRef.current?.focus();
     }
@@ -67,7 +69,7 @@ export const AdminPanelUsersDialog: FC<AdminPanelUsersDialogProps> = ({
       firstName: firstName.trim(),
       middleName: middleName.trim(),
       email: email.trim(),
-      role,
+      role, // role is already the backend value (e.g., "employee")
     };
     onSubmit(data);
     onOpenChange(false);
@@ -76,9 +78,6 @@ export const AdminPanelUsersDialog: FC<AdminPanelUsersDialogProps> = ({
   const handleCancel = () => {
     onOpenChange(false);
   };
-
-  const currentRoleLabel =
-    roleOptions.find((r) => r.value === role)?.label ?? role ?? "—";
 
   return (
     <Portal>
@@ -137,37 +136,30 @@ export const AdminPanelUsersDialog: FC<AdminPanelUsersDialogProps> = ({
 
               <Field.Root mt={4}>
                 <Field.Label>Роль</Field.Label>
-
-                {initialValue?.role ? (
-                  <Text fontWeight="medium" color="gray.700">
-                    {currentRoleLabel}
-                  </Text>
-                ) : (
-                  <Select.Root
-                    collection={roleCollection}
-                    value={role}
-                    onValueChange={(val) => setRole(val as string)}
-                  >
-                    <Select.Control>
-                      <Select.Trigger>
-                        <Select.ValueText placeholder="Выберите роль" />
-                      </Select.Trigger>
-                      <Select.IndicatorGroup>
-                        <Select.Indicator />
-                      </Select.IndicatorGroup>
-                    </Select.Control>
-                    <Select.Positioner>
-                      <Select.Content>
-                        {roleCollection.items.map((opt) => (
-                          <Select.Item item={opt} key={opt.value}>
-                            {opt.label}
-                            <Select.ItemIndicator />
-                          </Select.Item>
-                        ))}
-                      </Select.Content>
-                    </Select.Positioner>
-                  </Select.Root>
-                )}
+                <Select.Root
+                  collection={roleCollection}
+                  value={role ? [role] : []}
+                  onValueChange={(details) => setRole(details.value[0] || "")}
+                >
+                  <Select.Control>
+                    <Select.Trigger>
+                      <Select.ValueText placeholder="Выберите роль" />
+                    </Select.Trigger>
+                    <Select.IndicatorGroup>
+                      <Select.Indicator />
+                    </Select.IndicatorGroup>
+                  </Select.Control>
+                  <Select.Positioner>
+                    <Select.Content>
+                      {roleCollection.items.map((opt) => (
+                        <Select.Item item={opt} key={opt.value}>
+                          {opt.label}
+                          <Select.ItemIndicator />
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Positioner>
+                </Select.Root>
               </Field.Root>
             </Dialog.Body>
             <Dialog.Footer>
