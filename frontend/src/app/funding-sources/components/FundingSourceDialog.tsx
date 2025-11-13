@@ -41,7 +41,7 @@ export const FundingSourceDialog = ({ open, onOpenChange, initialValue, onSubmit
             <Dialog.Body>
               <Field.Root required>
                 <Field.Label>Название</Field.Label>
-                <Input ref={inputRef} value={name} onChange={(e) => setName(e.target.value)} placeholder="Например: Внутренний бюджет" />
+                <Input ref={inputRef} value={name} onChange={(e) => setName(e.target.value)} placeholder="" />
               </Field.Root>
             </Dialog.Body>
             <Dialog.Footer>

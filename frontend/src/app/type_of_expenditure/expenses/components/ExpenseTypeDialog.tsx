@@ -64,7 +64,7 @@ export const ExpenseTypeDialog = ({ open, onOpenChange, initialValue, onSubmit }
                   ref={inputRef}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Введите название"
+                  placeholder=""
                   autoFocus
                 />
               </Field.Root>
