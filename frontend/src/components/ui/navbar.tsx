@@ -1,7 +1,7 @@
 import { HamburgerIcon } from "@chakra-ui/icons";
 import { Box, Flex, IconButton, Portal, Drawer } from "@chakra-ui/react";
 import { SearchInput } from "./SearchInput";
-import { LuHouse, LuCreditCard, LuChartArea, LuUsers, LuSettings } from "react-icons/lu";
+import { LuHouse, LuCreditCard, LuChartArea, LuUsers, LuSettings, LuBanknote, LuBookUser, LuCoins } from "react-icons/lu";
 import { useRouter } from "next/navigation";
 
 const pages = [
@@ -9,9 +9,9 @@ const pages = [
   { name: "Учёт затрат", path: "/expenses", icon: LuCreditCard },
   { name: "Аналитика и отчётность", path: "/analytics", icon: LuChartArea },
   { name: "Управление пользователями", path: "/admin-panel", icon: LuUsers },
-  { name: "Типы затрат", path: "/type_of_expenditure", icon: LuSettings },
-  { name: "Источники финансирования", path: "/funding-sources", icon: LuSettings },
-  { name: "Подразделения", path: "/departments", icon: LuSettings },
+  { name: "Типы затрат", path: "/type_of_expenditure", icon: LuCoins },
+  { name: "Источники финансирования", path: "/funding-sources", icon: LuBanknote },
+  { name: "Подразделения", path: "/departments", icon: LuBookUser },
 ];
 
 export default function Navbar() {
