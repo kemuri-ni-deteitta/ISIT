@@ -96,7 +96,14 @@ async fn main() -> anyhow::Result<()> {
 				.route("/:id", put(http::expense_handlers::update_expense))
 				.route("/:id", delete(http::expense_handlers::delete_expense)),
 		)
-		.route("/api/v1/departments", get(http::department_handlers::list_departments))
+		.nest(
+			"/api/v1/departments",
+			Router::new()
+				.route("/", get(http::department_handlers::list_departments))
+				.route("/", post(http::department_handlers::create_department))
+				.route("/:id", put(http::department_handlers::update_department))
+				.route("/:id", delete(http::department_handlers::delete_department)),
+		)
 		.nest(
 			"/api/v1/categories",
 			Router::new()

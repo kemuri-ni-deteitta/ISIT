@@ -13,6 +13,7 @@ pub struct Department {
 
 #[derive(Debug, Deserialize)]
 pub struct CreateDepartmentRequest {
+	#[serde(default)]
 	pub code: String,
 	pub name: String,
 	pub parent_id: Option<Uuid>,

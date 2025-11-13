@@ -11,6 +11,7 @@ const pages = [
   { name: "Управление пользователями", path: "/admin-panel", icon: LuUsers },
   { name: "Типы затрат", path: "/type_of_expenditure", icon: LuSettings },
   { name: "Источники финансирования", path: "/funding-sources", icon: LuSettings },
+  { name: "Подразделения", path: "/departments", icon: LuSettings },
 ];
 
 export default function Navbar() {
