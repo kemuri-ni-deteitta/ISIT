@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Box, Card, Flex, HStack, Select, Square, Text, Wrap, WrapItem, createListCollection, Checkbox } from "@chakra-ui/react";
+import { Box, Card, Flex, HStack, Select, Square, Text, Wrap, WrapItem, createListCollection } from "@chakra-ui/react";
 import { expensesApi } from "@/shared/api/expenses";
 import { referenceApi } from "@/shared/api/reference";
 import type { Expense } from "@/shared/types/expense";
@@ -48,6 +48,7 @@ export const AnalyticsView = () => {
   const [period, setPeriod] = useState<PeriodOption>("all");
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categoryNameById, setCategoryNameById] = useState<Record<string, string>>({});
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -57,6 +58,7 @@ export const AnalyticsView = () => {
       if (!mounted) return;
       setExpenses(listResp.expenses);
       setCategoryNameById(Object.fromEntries(cats.map((c) => [c.id, c.name])));
+      setCategoryIds(cats.map((c) => c.id));
     })();
     return () => {
       mounted = false;
@@ -70,20 +72,21 @@ export const AnalyticsView = () => {
   }, [expenses, period]);
 
   const dataByCategory = useMemo(() => {
-    const acc: Record<string, number> = {};
+    // Sum expenses per category
+    const sumsByCategoryId: Record<string, number> = {};
     for (const e of filteredExpenses) {
       const key = e.category_id;
       const amount = Number(e.amount || "0");
-      acc[key] = (acc[key] || 0) + amount;
+      sumsByCategoryId[key] = (sumsByCategoryId[key] || 0) + amount;
     }
-    const entries = Object.entries(acc)
-      .map(([categoryId, value]) => ({
-        name: categoryNameById[categoryId] || categoryId,
-        value,
-      }))
-      .sort((a, b) => b.value - a.value);
-    return entries;
-  }, [filteredExpenses, categoryNameById]);
+    // Build entries for all known categories so the legend always shows all types
+    const entries = categoryIds.map((categoryId) => ({
+      name: categoryNameById[categoryId] || categoryId,
+      value: sumsByCategoryId[categoryId] || 0,
+    }));
+    // Sort by value desc so bigger slices first
+    return entries.sort((a, b) => b.value - a.value);
+  }, [filteredExpenses, categoryIds, categoryNameById]);
 
   const chart = useChart({
     data: dataByCategory,
@@ -119,9 +122,14 @@ export const AnalyticsView = () => {
       <Card.Root mb={4}>
         <Card.Body>
           <Flex gap={6} align="center" justify="space-between" wrap="wrap">
-            <Flex gap={3} align="center" flex="1" minW="360px">
+            <Flex gap={4} align="center" flex="1" minW="480px">
               <Text>Тип графика:</Text>
-              <Select.Root value={[chartType]} onValueChange={(d) => setChartType((d.value[0] as ChartType) || "pie")} collection={chartTypes}>
+              <Select.Root
+                w="360px"
+                value={[chartType]}
+                onValueChange={(d) => setChartType((d.value[0] as ChartType) || "pie")}
+                collection={chartTypes}
+              >
                 <Select.Control>
                   <Select.Trigger>
                     <Select.ValueText placeholder="Выберите тип графика" />
@@ -141,6 +149,28 @@ export const AnalyticsView = () => {
                   </Select.Content>
                 </Select.Positioner>
               </Select.Root>
+              <Wrap gap="16px" align="center" ml={4} flex="1" justify="flex-start">
+                {chart.data.map((d: any, idx: number) => {
+                  const color = colors[idx % colors.length];
+                  const isOn = selected.has(d.name);
+                  return (
+                    <WrapItem key={d.name}>
+                      <HStack
+                        gap={2}
+                        cursor="pointer"
+                        onClick={() => toggleCategory(d.name)}
+                        opacity={isOn ? 1 : 0.4}
+                        _hover={{ opacity: 0.85 }}
+                      >
+                        <Square size="12px" bg={color} borderRadius="sm" />
+                        <Text>
+                          {d.name} — {Math.round((d.value as number) * 100) / 100} ₽
+                        </Text>
+                      </HStack>
+                    </WrapItem>
+                  );
+                })}
+              </Wrap>
             </Flex>
             <Flex gap={3} align="center">
               <Text>Период:</Text>
@@ -167,29 +197,7 @@ export const AnalyticsView = () => {
             </Flex>
           </Flex>
 
-          {/* Legend row (centered under toolbar) */}
-          <Flex justify="center" mt={3}>
-            <Wrap gap="24px" align="center">
-              {chart.data.map((d: any, idx: number) => {
-                const color = colors[idx % colors.length];
-                const isOn = selected.has(d.name);
-                return (
-                  <WrapItem key={d.name}>
-                    <HStack
-                      gap={2}
-                      cursor="pointer"
-                      onClick={() => toggleCategory(d.name)}
-                      opacity={isOn ? 1 : 0.4}
-                      _hover={{ opacity: 0.85 }}
-                    >
-                      <Square size="12px" bg={color} borderRadius="sm" />
-                      <Text>{d.name}</Text>
-                    </HStack>
-                  </WrapItem>
-                );
-              })}
-            </Wrap>
-          </Flex>
+          
 
         </Card.Body>
       </Card.Root>
@@ -203,11 +211,11 @@ export const AnalyticsView = () => {
                   data={displayData}
                   dataKey="value"
                   nameKey="name"
-                  innerRadius={110}
-                  outerRadius={180}
-                  paddingAngle={1}
+                  innerRadius={0}
+                  outerRadius={260}
+                  paddingAngle={2}
                   cx="50%"
-                  cy="45%"
+                  cy="52%"
                   isAnimationActive={false}
                 >
                   {displayData.map((_: any, idx: number) => (

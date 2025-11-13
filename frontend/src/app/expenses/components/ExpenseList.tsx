@@ -6,6 +6,7 @@ import { expensesApi } from "@/shared/api/expenses";
 import { referenceApi } from "@/shared/api/reference";
 import type { Category, Department, Expense } from "@/shared/types/expense";
 import { ItemActions } from "@/components/ui/ItemActions";
+import { toaster } from "@/components/ui/toaster";
 
 export const ExpenseList = () => {
   const [loading, setLoading] = useState(true);
@@ -15,6 +16,17 @@ export const ExpenseList = () => {
 
   const categoryById = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories]);
   const departmentById = useMemo(() => Object.fromEntries(departments.map((d) => [d.id, d])), [departments]);
+
+  const handleDelete = async (exp: Expense) => {
+    if (!exp?.id) return;
+    try {
+      await expensesApi.delete(String(exp.id));
+      setItems((prev) => prev.filter((i) => i.id !== exp.id));
+      toaster.success({ title: "Запись удалена" });
+    } catch {
+      toaster.error({ title: "Ошибка удаления записи" });
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -93,10 +105,7 @@ export const ExpenseList = () => {
                       // TODO: Implement edit
                       console.log("Edit expense", e.id);
                     }}
-                    onDelete={() => {
-                      // TODO: Implement delete
-                      console.log("Delete expense", e.id);
-                    }}
+                    onDelete={handleDelete}
                   />
                 </Table.Cell>
               </Table.Row>
